@@ -14,9 +14,11 @@ import {
   Wand2,
   FileDown,
   History,
-  ChevronDown
+  ChevronDown,
+  AlertCircle
 } from 'lucide-react';
 import jsPDF from 'jspdf';
+import { useEffect } from 'react';
 import useStore from '../state/useStore';
 import useAuthStore from '../state/useAuthStore';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -35,8 +37,7 @@ const Workspace = () => {
     generateCustomContent,
     vibeMode,
     setVibeMode,
-    claudeApiKey,
-    claudeError,
+    gptError,
     lastGeneratedContent,
     recentGenerations
   } = useStore();
@@ -49,6 +50,16 @@ const Workspace = () => {
   const [localContent, setLocalContent] = useState(workspaceContent);
   const [localTitle, setLocalTitle] = useState(workspaceTitle);
   const textareaRef = useRef(null);
+
+  // Update local content when workspace content changes
+  useEffect(() => {
+    setLocalContent(workspaceContent);
+  }, [workspaceContent]);
+
+  // Update local title when workspace title changes
+  useEffect(() => {
+    setLocalTitle(workspaceTitle);
+  }, [workspaceTitle]);
 
   const vibeOptions = {
     'classic-student': {
@@ -67,6 +78,21 @@ const Workspace = () => {
     setWorkspaceContent(localContent);
     setWorkspaceTitle(localTitle);
     setIsEditing(false);
+  };
+
+  const handleGenerateAnswer = async () => {
+    const { hasAllKeys } = useAuthStore.getState();
+    
+    if (!hasAllKeys()) {
+      return; // KeysAlert will guide user
+    }
+
+    if (currentAssignment) {
+      const result = await generateContent(currentAssignment, vibeMode);
+      if (result) {
+        setLocalContent(workspaceContent);
+      }
+    }
   };
 
   const handleCopy = async () => {
@@ -158,10 +184,13 @@ const Workspace = () => {
     }
   };
 
-  if (!currentAssignment && !workspaceContent) {
+  if (!workspaceContent && !isGenerating) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-dark-900 p-6">
         <div className="max-w-4xl mx-auto">
+          {/* API Keys Alert */}
+          <KeysAlert className="mb-6" />
+          
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -169,18 +198,33 @@ const Workspace = () => {
           >
             <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              No Content Yet
+              {currentAssignment ? 'Ready to Generate' : 'No Content Yet'}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Generate AI content from an assignment to get started
+              {currentAssignment 
+                ? `Generate AI content for: ${currentAssignment.title}`
+                : 'Select an assignment to generate AI content'
+              }
             </p>
-            <a 
-              href="/assignments" 
-              className="btn-primary inline-flex items-center"
-            >
-              <Zap className="h-4 w-4 mr-2" />
-              Go to Assignments
-            </a>
+            {currentAssignment ? (
+              <motion.button
+                onClick={handleGenerateAnswer}
+                className="btn-primary inline-flex items-center"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Zap className="h-4 w-4 mr-2" />
+                Generate Answer
+              </motion.button>
+            ) : (
+              <a 
+                href="/assignments" 
+                className="btn-primary inline-flex items-center"
+              >
+                <Zap className="h-4 w-4 mr-2" />
+                Go to Assignments
+              </a>
+            )}
           </motion.div>
         </div>
       </div>
@@ -209,7 +253,7 @@ const Workspace = () => {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-gray-300 flex items-center">
                   <Zap className="h-4 w-4 mr-2 animate-pulse text-neon-pink" />
-                  Generating with Claude AI...
+                  Generating with GPT AI...
                 </span>
                 <span className="text-sm text-accent-400">Processing</span>
               </div>
@@ -354,6 +398,19 @@ const Workspace = () => {
                 Actions
               </h3>
               <div className="space-y-3">
+                {/* Generate Answer Button */}
+                {currentAssignment && !workspaceContent && !isGenerating && (
+                  <motion.button
+                    onClick={handleGenerateAnswer}
+                    className="btn-primary w-full text-sm flex items-center justify-center"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Zap className="h-4 w-4 mr-2" />
+                    Generate Answer
+                  </motion.button>
+                )}
+                
                 {isEditing && (
                   <motion.button
                     onClick={handleSave}
@@ -366,37 +423,65 @@ const Workspace = () => {
                   </motion.button>
                 )}
                 
-                <motion.button
-                  onClick={handleCopy}
-                  className="btn-secondary w-full text-sm flex items-center justify-center"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy Text
-                </motion.button>
-                
-                <motion.button
-                  onClick={handleDownload}
-                  className="btn-secondary w-full text-sm flex items-center justify-center"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </motion.button>
-                
-                <motion.button
-                  onClick={handleRegenerate}
-                  disabled={isGenerating}
-                  className="btn-accent w-full text-sm flex items-center justify-center disabled:opacity-50"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} />
-                  Regenerate
-                </motion.button>
+                {workspaceContent && (
+                  <>
+                    <motion.button
+                      onClick={handleCopy}
+                      className="btn-secondary w-full text-sm flex items-center justify-center"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy Text
+                    </motion.button>
+                    
+                    <motion.button
+                      onClick={handleDownload}
+                      className="btn-secondary w-full text-sm flex items-center justify-center"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </motion.button>
+                    
+                    <motion.button
+                      onClick={handleEmailExport}
+                      className="btn-secondary w-full text-sm flex items-center justify-center"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      Email
+                    </motion.button>
+                    
+                    <motion.button
+                      onClick={handleRegenerate}
+                      disabled={isGenerating}
+                      className="btn-accent w-full text-sm flex items-center justify-center disabled:opacity-50"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} />
+                      Regenerate
+                    </motion.button>
+                  </>
+                )}
               </div>
+              
+              {/* Error Display */}
+              {gptError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg"
+                >
+                  <p className="text-red-400 text-xs flex items-center">
+                    <AlertCircle className="h-3 w-3 mr-2" />
+                    {gptError}
+                  </p>
+                </motion.div>
+              )}
             </div>
 
             {/* Assignment Info */}

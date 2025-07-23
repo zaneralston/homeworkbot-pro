@@ -15,7 +15,8 @@ import {
   ChevronDown,
   Eye,
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  Check
 } from 'lucide-react';
 import useStore from '../state/useStore';
 import useAuthStore from '../state/useAuthStore';
@@ -35,9 +36,10 @@ const Assignments = () => {
     canvasError,
     isFetchingAssignments,
     fetchCanvasAssignments,
-    claudeApiKey,
     lastCanvasSync,
-    isGenerating: storeIsGenerating
+    isGenerating: storeIsGenerating,
+    syncSuccessMessage,
+    clearSyncMessage
   } = useStore();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -228,6 +230,20 @@ const Assignments = () => {
             </div>
           </div>
           
+          {/* Success Message */}
+          {syncSuccessMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg"
+            >
+              <p className="text-green-400 text-sm flex items-center">
+                <Check className="h-4 w-4 mr-2" />
+                {syncSuccessMessage}
+              </p>
+            </motion.div>
+          )}
+          
           {/* Error Display */}
           {canvasError && (
             <motion.div
@@ -237,7 +253,7 @@ const Assignments = () => {
             >
               <p className="text-red-400 text-sm flex items-center">
                 <AlertCircle className="h-4 w-4 mr-2" />
-                Canvas Error: {canvasError}
+                {canvasError}
               </p>
             </motion.div>
           )}

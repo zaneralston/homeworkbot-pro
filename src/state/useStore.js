@@ -100,8 +100,11 @@ const useStore = create(
       isConnectingCanvas: false,
       isFetchingAssignments: false,
       lastCanvasSync: null,
+      syncSuccessMessage: null,
       
       setCanvasConnected: (connected) => set({ isCanvasConnected: connected }),
+      
+      clearSyncMessage: () => set({ syncSuccessMessage: null }),
 
       connectCanvas: async () => {
         const authStore = useAuthStore.getState();
@@ -149,12 +152,15 @@ const useStore = create(
         const canvasBaseUrl = authStore.getCanvasBaseUrl();
         const canvasKey = authStore.getCanvasKey();
         
+        // Clear any previous messages
+        set({ syncSuccessMessage: null, canvasError: null });
+        
         if (!canvasKey) {
           set({ canvasError: 'Canvas API token is required. Go to Settings to add it.' });
           return false;
         }
 
-        set({ isFetchingAssignments: true, canvasError: null });
+        set({ isFetchingAssignments: true });
 
         try {
           const canvasAPI = createCanvasAPI(canvasBaseUrl, canvasKey);
@@ -176,19 +182,27 @@ const useStore = create(
               pointsPossible: assignment.pointsPossible
             }));
 
+            const count = transformedAssignments.length;
             set({ 
               assignments: transformedAssignments,
               lastCanvasSync: new Date().toISOString(),
               canvasError: null,
-              isCanvasConnected: true
+              isCanvasConnected: true,
+              syncSuccessMessage: `Successfully synced ${count} assignment${count !== 1 ? 's' : ''} from Canvas`
             });
+            
+            // Clear success message after 5 seconds
+            setTimeout(() => {
+              set({ syncSuccessMessage: null });
+            }, 5000);
+            
             return true;
           } else {
-            set({ canvasError: result.error || 'Failed to fetch assignments' });
+            set({ canvasError: result.error || 'Unable to connect to Canvas — check your API token in Settings' });
             return false;
           }
         } catch (error) {
-          set({ canvasError: error.message });
+          set({ canvasError: 'Unable to connect to Canvas — check your API token in Settings' });
           return false;
         } finally {
           set({ isFetchingAssignments: false });
