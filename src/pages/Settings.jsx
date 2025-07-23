@@ -50,20 +50,18 @@ const Settings = () => {
     getTrialDaysRemaining
   } = useAuthStore();
 
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [showGptKey, setShowGptKey] = useState(false);
   const [showCanvasKey, setShowCanvasKey] = useState(false);
-  const [localOpenAIKey, setLocalOpenAIKey] = useState('');
+  const [localGptKey, setLocalGptKey] = useState('');
   const [localCanvasKey, setLocalCanvasKey] = useState('');
-  const [localCanvasUrl, setLocalCanvasUrl] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
   const [isSavingKeys, setIsSavingKeys] = useState(false);
 
   // Load API keys from auth store when they change
   useEffect(() => {
     if (userApiKeys) {
-      setLocalOpenAIKey(userApiKeys.openai_api_key || '');
+      setLocalGptKey(userApiKeys.openai_api_key || '');
       setLocalCanvasKey(userApiKeys.canvas_api_key || '');
-      setLocalCanvasUrl(userApiKeys.canvas_base_url || 'https://canvas.asu.edu');
     }
   }, [userApiKeys]);
 
@@ -82,17 +80,23 @@ const Settings = () => {
     }
   };
 
-  const handleSaveSettings = async () => {
+  const handleSaveKeys = async () => {
     if (!user) return;
+    
+    if (!localGptKey || !localCanvasKey) {
+      setSaveStatus('missing-keys');
+      setTimeout(() => setSaveStatus(''), 3000);
+      return;
+    }
 
     setIsSavingKeys(true);
     setSaveStatus('saving');
 
     try {
       await saveUserApiKeys({
-        openaiApiKey: localOpenAIKey,
-        canvasApiKey: localCanvasKey,
-        canvasBaseUrl: localCanvasUrl
+        openaiApiKey: localGptKey.trim(),
+        canvasApiKey: localCanvasKey.trim(),
+        canvasBaseUrl: 'https://canvas.asu.edu'
       });
 
       clearErrors();
@@ -102,7 +106,7 @@ const Settings = () => {
       setSaveStatus('error');
     } finally {
       setIsSavingKeys(false);
-      setTimeout(() => setSaveStatus(''), 3000);
+      setTimeout(() => setSaveStatus(''), 5000);
     }
   };
 
@@ -239,7 +243,7 @@ const Settings = () => {
         </motion.div>
 
         <div className="space-y-8">
-          {/* AI Configuration */}
+          {/* API Keys Setup */}
           <motion.section 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -249,159 +253,57 @@ const Settings = () => {
               <div className="flex items-center mb-6">
                 <Key className="h-6 w-6 text-primary-600 mr-3" />
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  AI Configuration
+                  Setup Your API Keys
                 </h2>
               </div>
 
+              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-2">Quick Setup (One-time)</h3>
+                <p className="text-sm text-blue-800 dark:text-blue-400">
+                  Add your OpenAI and Canvas API keys below. Once saved, you'll be able to sync assignments and generate content automatically.
+                </p>
+              </div>
+
               <div className="space-y-6">
-                {/* OpenAI API Key */}
+                {/* OpenAI GPT API Key */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    OpenAI API Key
-                    {import.meta.env.VITE_OPENAI_API_KEY && (
-                      <span className="text-xs text-green-600 ml-2">(Admin key available)</span>
-                    )}
+                    OpenAI GPT API Key *
                   </label>
                   <div className="relative">
                     <input
-                      type={showApiKey ? 'text' : 'password'}
-                      value={localOpenAIKey}
-                      onChange={(e) => setLocalOpenAIKey(e.target.value)}
+                      type={showGptKey ? 'text' : 'password'}
+                      value={localGptKey}
+                      onChange={(e) => setLocalGptKey(e.target.value)}
                       className="input-field pr-10"
-                      placeholder={import.meta.env.VITE_OPENAI_API_KEY ? "Optional - admin key available" : "sk-..."}
+                      placeholder="sk-..."
+                      required
                     />
                     <button
-                      onClick={() => setShowApiKey(!showApiKey)}
+                      onClick={() => setShowGptKey(!showGptKey)}
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
-                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showGptKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  <div className="flex items-center justify-between mt-2">
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      Get your API key from{' '}
-                      <a 
-                        href="https://platform.openai.com/api-keys" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary-600 hover:text-primary-700 inline-flex items-center"
-                      >
-                        OpenAI Platform
-                        <ExternalLink className="h-3 w-3 ml-1" />
-                      </a>
-                    </p>
-                    <motion.button
-                      onClick={handleTestGPTConnection}
-                      disabled={(!localOpenAIKey && !import.meta.env.VITE_OPENAI_API_KEY) || isTestingGPT}
-                      className="btn-secondary text-xs px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      {isTestingGPT ? (
-                        <div className="flex items-center">
-                          <LoadingSpinner size="sm" text="" color="accent" />
-                          <span className="ml-1">Testing...</span>
-                        </div>
-                      ) : (
-                        'Test API'
-                      )}
-                    </motion.button>
-                  </div>
-                  {gptError && (
-                    <p className="text-xs text-red-600 mt-1 flex items-center">
-                      <AlertCircle className="h-3 w-3 mr-1" />
-                      {gptError}
-                    </p>
-                  )}
-                </div>
-
-                {/* Vibe Mode Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    Writing Style (Vibe Mode)
-                  </label>
-                  <div className="grid gap-4">
-                    {Object.entries(vibeOptions).map(([key, option]) => (
-                      <motion.button
-                        key={key}
-                        onClick={() => setVibeMode(key)}
-                        className={`p-4 rounded-lg border-2 text-left transition-all ${
-                          vibeMode === key 
-                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' 
-                            : 'border-gray-200 dark:border-dark-600 hover:border-primary-300'
-                        }`}
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start space-x-3 flex-1">
-                            <span className="text-2xl">{option.emoji}</span>
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-gray-900 dark:text-white">
-                                {option.name}
-                              </h3>
-                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                {option.description}
-                              </p>
-                              <div className="bg-gray-100 dark:bg-dark-700 p-2 rounded text-xs text-gray-700 dark:text-gray-300 italic">
-                                "{option.preview}"
-                              </div>
-                            </div>
-                          </div>
-                          {vibeMode === key && (
-                            <Check className="h-5 w-5 text-primary-600 mt-1" />
-                          )}
-                        </div>
-                      </motion.button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.section>
-
-          {/* Canvas Integration */}
-          <motion.section 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="card">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center">
-                  <LinkIcon className="h-6 w-6 text-primary-600 mr-3" />
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    Canvas Integration
-                  </h2>
-                </div>
-                {isCanvasConnected && (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300">
-                    <Check className="h-4 w-4 mr-1" />
-                    Connected
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Canvas Base URL
-                  </label>
-                  <input
-                    type="url"
-                    value={localCanvasUrl}
-                    onChange={(e) => setLocalCanvasUrl(e.target.value)}
-                    className="input-field"
-                    placeholder="https://yourschool.instructure.com"
-                  />
                   <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                    Your school's Canvas URL (e.g., yourschool.instructure.com)
+                    Get your API key from{' '}
+                    <a 
+                      href="https://platform.openai.com/api-keys" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary-600 hover:text-primary-700 inline-flex items-center"
+                    >
+                      OpenAI Platform
+                      <ExternalLink className="h-3 w-3 ml-1" />
+                    </a>
                   </p>
                 </div>
 
+                {/* Canvas API Key */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Canvas API Token
+                    Canvas API Token *
                   </label>
                   <div className="relative">
                     <input
@@ -409,7 +311,8 @@ const Settings = () => {
                       value={localCanvasKey}
                       onChange={(e) => setLocalCanvasKey(e.target.value)}
                       className="input-field pr-10"
-                      placeholder="1234~..."
+                      placeholder="1~..."
+                      required
                     />
                     <button
                       onClick={() => setShowCanvasKey(!showCanvasKey)}
@@ -419,32 +322,121 @@ const Settings = () => {
                     </button>
                   </div>
                   <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                    Generate from Canvas → Account → Settings → Approved Integrations → New Access Token
+                    From ASU Canvas: Account → Settings → Approved Integrations → New Access Token
                   </p>
                 </div>
 
-                <motion.button
-                  onClick={handleTestCanvasConnection}
-                  disabled={!localCanvasKey || !localCanvasUrl || isConnectingCanvas}
-                  className="btn-accent text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  {isConnectingCanvas ? (
-                    <div className="flex items-center">
-                      <LoadingSpinner size="sm" text="" color="white" />
-                      <span className="ml-2">Testing...</span>
-                    </div>
-                  ) : (
-                    'Test Connection'
-                  )}
-                </motion.button>
-                {canvasError && (
-                  <p className="text-xs text-red-600 mt-2 flex items-center">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    {canvasError}
-                  </p>
+                {/* Save Button */}
+                <div className="pt-4">
+                  <motion.button
+                    onClick={handleSaveKeys}
+                    disabled={!localGptKey || !localCanvasKey || isSavingKeys}
+                    className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {isSavingKeys ? (
+                      <div className="flex items-center justify-center">
+                        <LoadingSpinner size="sm" text="" color="white" />
+                        <span className="ml-2">Saving Keys...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save API Keys
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+
+                {/* Status Messages */}
+                {saveStatus && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-3 rounded-lg flex items-center text-sm ${
+                      saveStatus === 'success' 
+                        ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800'
+                        : saveStatus === 'missing-keys'
+                        ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800'
+                        : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800'
+                    }`}
+                  >
+                    {saveStatus === 'success' && (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Keys saved successfully! You can now sync assignments and generate content.
+                      </>
+                    )}
+                    {saveStatus === 'missing-keys' && (
+                      <>
+                        <AlertCircle className="h-4 w-4 mr-2" />
+                        Please enter both your OpenAI GPT key and Canvas API token.
+                      </>
+                    )}
+                    {saveStatus === 'error' && (
+                      <>
+                        <X className="h-4 w-4 mr-2" />
+                        Error saving keys. Please try again.
+                      </>
+                    )}
+                    {saveStatus === 'saving' && (
+                      <>
+                        <LoadingSpinner size="sm" text="" color="current" />
+                        <span className="ml-2">Saving keys securely...</span>
+                      </>
+                    )}
+                  </motion.div>
                 )}
+              </div>
+            </div>
+          </motion.section>
+
+          {/* Writing Style */}
+          <motion.section 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="card">
+              <div className="flex items-center mb-6">
+                <Palette className="h-6 w-6 text-primary-600 mr-3" />
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Writing Style
+                </h2>
+              </div>
+
+              <div className="space-y-3">
+                {Object.entries(vibeOptions).map(([key, option]) => (
+                  <motion.button
+                    key={key}
+                    onClick={() => setVibeMode(key)}
+                    className={`p-3 rounded-lg border-2 text-left transition-all w-full ${
+                      vibeMode === key 
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' 
+                        : 'border-gray-200 dark:border-dark-600 hover:border-primary-300'
+                    }`}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <span className="text-xl">{option.emoji}</span>
+                        <div>
+                          <h3 className="font-semibold text-gray-900 dark:text-white text-sm">
+                            {option.name}
+                          </h3>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {option.description}
+                          </p>
+                        </div>
+                      </div>
+                      {vibeMode === key && (
+                        <Check className="h-4 w-4 text-primary-600" />
+                      )}
+                    </div>
+                  </motion.button>
+                ))}
               </div>
             </div>
           </motion.section>

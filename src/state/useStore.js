@@ -106,17 +106,17 @@ const useStore = create(
       connectCanvas: async () => {
         const authStore = useAuthStore.getState();
         const canvasBaseUrl = authStore.getCanvasBaseUrl();
-        const canvasApiKey = authStore.getCanvasApiKey();
+        const canvasKey = authStore.getCanvasKey();
         
-        if (!canvasBaseUrl || !canvasApiKey) {
-          set({ canvasError: 'Canvas URL and API key are required. Please add them in Settings.' });
+        if (!canvasKey) {
+          set({ canvasError: 'Canvas API token is required. Please add it in Settings.' });
           return false;
         }
 
         set({ isConnectingCanvas: true, canvasError: null });
 
         try {
-          const canvasAPI = createCanvasAPI(canvasBaseUrl, canvasApiKey);
+          const canvasAPI = createCanvasAPI(canvasBaseUrl, canvasKey);
           const result = await canvasAPI.testConnection();
           
           if (result.success) {
@@ -145,20 +145,19 @@ const useStore = create(
       },
 
       fetchCanvasAssignments: async () => {
-        const { isCanvasConnected } = get();
         const authStore = useAuthStore.getState();
         const canvasBaseUrl = authStore.getCanvasBaseUrl();
-        const canvasApiKey = authStore.getCanvasApiKey();
+        const canvasKey = authStore.getCanvasKey();
         
-        if (!isCanvasConnected || !canvasBaseUrl || !canvasApiKey) {
-          set({ canvasError: 'Canvas not connected or API keys missing' });
+        if (!canvasKey) {
+          set({ canvasError: 'Canvas API token is required. Go to Settings to add it.' });
           return false;
         }
 
         set({ isFetchingAssignments: true, canvasError: null });
 
         try {
-          const canvasAPI = createCanvasAPI(canvasBaseUrl, canvasApiKey);
+          const canvasAPI = createCanvasAPI(canvasBaseUrl, canvasKey);
           const result = await canvasAPI.getAssignments();
           
           if (result.success) {
@@ -180,7 +179,8 @@ const useStore = create(
             set({ 
               assignments: transformedAssignments,
               lastCanvasSync: new Date().toISOString(),
-              canvasError: null
+              canvasError: null,
+              isCanvasConnected: true
             });
             return true;
           } else {
@@ -201,17 +201,17 @@ const useStore = create(
 
       testGPTConnection: async () => {
         const authStore = useAuthStore.getState();
-        const openaiApiKey = authStore.getOpenAIApiKey();
+        const gptKey = authStore.getGptKey();
         
-        if (!openaiApiKey) {
-          set({ gptError: 'OpenAI API key is required. Please add it in Settings or set VITE_OPENAI_API_KEY.' });
+        if (!gptKey) {
+          set({ gptError: 'OpenAI GPT API key is required. Please add it in Settings.' });
           return false;
         }
 
         set({ isTestingGPT: true, gptError: null });
 
         try {
-          const gptAPI = createGPTAPI(openaiApiKey);
+          const gptAPI = createGPTAPI(gptKey);
           const result = await gptAPI.testConnection();
           
           if (result.success) {
@@ -227,6 +227,20 @@ const useStore = create(
         } finally {
           set({ isTestingGPT: false });
         }
+      },
+
+      // Check if user has required keys
+      checkRequiredKeys: () => {
+        const authStore = useAuthStore.getState();
+        if (!authStore.hasGptKey()) {
+          set({ gptError: 'Missing OpenAI GPT key. Go to Settings to add it.' });
+          return false;
+        }
+        if (!authStore.hasCanvasKey()) {
+          set({ canvasError: 'Missing Canvas API token. Go to Settings to add it.' });
+          return false;
+        }
+        return true;
       },
 
       // Planner state
@@ -251,17 +265,17 @@ const useStore = create(
       generateContent: async (assignment, customVibeMode = null) => {
         const { vibeMode: storeVibeMode } = get();
         const authStore = useAuthStore.getState();
-        const openaiApiKey = authStore.getOpenAIApiKey();
+        const gptKey = authStore.getGptKey();
         
-        if (!openaiApiKey) {
-          set({ gptError: 'OpenAI API key is required. Please add it in Settings or set VITE_OPENAI_API_KEY.' });
+        if (!gptKey) {
+          set({ gptError: 'OpenAI GPT API key is required. Go to Settings to add it.' });
           return null;
         }
 
         set({ isGenerating: true, gptError: null });
 
         try {
-          const gptAPI = createGPTAPI(openaiApiKey);
+          const gptAPI = createGPTAPI(gptKey);
           
           // Map vibe modes
           const vibeMode = customVibeMode || storeVibeMode;
@@ -338,17 +352,17 @@ Please provide a comprehensive response that meets all requirements.`;
       generateCustomContent: async (prompt, contentType = CONTENT_TYPES.ASSIGNMENT) => {
         const { vibeMode } = get();
         const authStore = useAuthStore.getState();
-        const openaiApiKey = authStore.getOpenAIApiKey();
+        const gptKey = authStore.getGptKey();
         
-        if (!openaiApiKey) {
-          set({ gptError: 'OpenAI API key is required. Please add it in Settings or set VITE_OPENAI_API_KEY.' });
+        if (!gptKey) {
+          set({ gptError: 'OpenAI GPT API key is required. Go to Settings to add it.' });
           return null;
         }
 
         set({ isGenerating: true, gptError: null });
 
         try {
-          const gptAPI = createGPTAPI(openaiApiKey);
+          const gptAPI = createGPTAPI(gptKey);
           const mappedVibeMode = vibeMode === 'classic-student' || vibeMode === 'Classic Student' 
             ? VIBE_MODES.CLASSIC 
             : VIBE_MODES.LAZY;

@@ -18,7 +18,9 @@ import {
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import useStore from '../state/useStore';
+import useAuthStore from '../state/useAuthStore';
 import LoadingSpinner from '../components/LoadingSpinner';
+import KeysAlert from '../components/KeysAlert';
 
 const Workspace = () => {
   const { 
@@ -124,17 +126,16 @@ const Workspace = () => {
   };
 
   const handleRegenerate = async () => {
-    if (!claudeApiKey) {
-      alert('Please add your Claude API key in Settings first');
-      return;
+    const { hasAllKeys } = useAuthStore.getState();
+    
+    if (!hasAllKeys()) {
+      return; // KeysAlert will guide user
     }
 
     if (currentAssignment) {
       const result = await generateContent(currentAssignment, vibeMode);
       if (result) {
         setLocalContent(workspaceContent);
-      } else {
-        alert('Failed to regenerate content. Please check your API key.');
       }
     }
   };
@@ -143,9 +144,10 @@ const Workspace = () => {
     setVibeMode(newVibe);
     setShowVibeModal(false);
     
-    if (!claudeApiKey) {
-      alert('Please add your Claude API key in Settings first');
-      return;
+    const { hasAllKeys } = useAuthStore.getState();
+    
+    if (!hasAllKeys()) {
+      return; // KeysAlert will guide user
     }
 
     if (currentAssignment) {
@@ -187,6 +189,13 @@ const Workspace = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-dark-900">
+      {/* API Keys Alert */}
+      <div className="p-6 pb-0">
+        <div className="max-w-7xl mx-auto">
+          <KeysAlert />
+        </div>
+      </div>
+      
       {/* Header */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}

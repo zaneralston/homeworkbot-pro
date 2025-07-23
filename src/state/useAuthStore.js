@@ -179,14 +179,13 @@ const useAuthStore = create((set, get) => ({
     return getTrialDaysRemaining(userSubscription);
   },
 
-  // API key getters for backward compatibility
-  getOpenAIApiKey: () => {
+  // API key getters - user-controlled only
+  getGptKey: () => {
     const { userApiKeys } = get();
-    // Fallback to environment variable for admin/testing
-    return userApiKeys?.openai_api_key || import.meta.env.VITE_OPENAI_API_KEY || '';
+    return userApiKeys?.openai_api_key || '';
   },
 
-  getCanvasApiKey: () => {
+  getCanvasKey: () => {
     const { userApiKeys } = get();
     return userApiKeys?.canvas_api_key || '';
   },
@@ -197,14 +196,20 @@ const useAuthStore = create((set, get) => ({
   },
 
   // Check if user has required API keys
-  hasOpenAIApiKey: () => {
+  hasGptKey: () => {
     const { userApiKeys } = get();
-    return !!(userApiKeys?.openai_api_key || import.meta.env.VITE_OPENAI_API_KEY);
+    return !!(userApiKeys?.openai_api_key?.trim());
   },
 
-  hasCanvasApiKey: () => {
+  hasCanvasKey: () => {
     const { userApiKeys } = get();
-    return !!(userApiKeys?.canvas_api_key);
+    return !!(userApiKeys?.canvas_api_key?.trim());
+  },
+
+  // Check if user has both keys for full functionality
+  hasAllKeys: () => {
+    const { userApiKeys } = get();
+    return !!(userApiKeys?.openai_api_key?.trim() && userApiKeys?.canvas_api_key?.trim());
   }
 }));
 

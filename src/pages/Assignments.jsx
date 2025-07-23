@@ -18,9 +18,11 @@ import {
   AlertCircle
 } from 'lucide-react';
 import useStore from '../state/useStore';
+import useAuthStore from '../state/useAuthStore';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AssignmentModal from '../components/AssignmentModal';
+import KeysAlert from '../components/KeysAlert';
 
 const Assignments = () => {
   const { 
@@ -114,8 +116,10 @@ const Assignments = () => {
   };
 
   const handleGenerateAI = async (assignment) => {
-    if (!claudeApiKey) {
-      alert('Please add your Claude API key in Settings first');
+    const { hasAllKeys } = useAuthStore.getState();
+    
+    if (!hasAllKeys()) {
+      // Don't need alert - KeysAlert component will guide user
       return;
     }
 
@@ -128,12 +132,9 @@ const Assignments = () => {
         updateAssignmentStatus(assignment.id, 'in-progress');
         // Navigate to workspace
         window.location.href = '/workspace';
-      } else {
-        alert('Failed to generate content. Please check your API key in Settings.');
       }
     } catch (error) {
       console.error('Failed to generate content:', error);
-      alert('Failed to generate content. Please try again.');
     } finally {
       setIsGenerating(null);
     }
@@ -156,6 +157,9 @@ const Assignments = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-dark-900 p-6">
       <div className="max-w-7xl mx-auto">
+        {/* API Keys Alert */}
+        <KeysAlert className="mb-6" />
+        
         {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
