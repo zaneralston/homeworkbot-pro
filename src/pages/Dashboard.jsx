@@ -13,8 +13,10 @@ import {
   Zap
 } from 'lucide-react';
 import useStore from '../state/useStore';
+import useAuthStore from '../state/useAuthStore';
 import EmptyState from '../components/EmptyState';
 import TrialBanner from '../components/TrialBanner';
+import KeysAlert from '../components/KeysAlert';
 
 const Dashboard = () => {
   const { 
@@ -24,6 +26,13 @@ const Dashboard = () => {
     generateContent,
     vibeMode 
   } = useStore();
+
+  const { 
+    user, 
+    hasAllKeys, 
+    hasGptKey, 
+    hasCanvasKey 
+  } = useAuthStore();
 
   // Filter and sort assignments
   const upcomingAssignments = assignments
@@ -74,6 +83,9 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen">
       <div className="content-container">
+        {/* API Keys Alert */}
+        <KeysAlert className="mb-6" />
+
         {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -81,12 +93,85 @@ const Dashboard = () => {
           className="mb-8"
         >
           <h1 className="heading-lg mb-2">
-            <span className="text-white">Welcome back!</span> <span className="text-gradient animate-glow">👋</span>
+            <span className="text-white">
+              {user?.user_metadata?.full_name 
+                ? `Welcome back, ${user.user_metadata.full_name.split(' ')[0]}!` 
+                : 'Welcome back!'
+              }
+            </span> 
+            <span className="text-gradient animate-glow">
+              {hasAllKeys() ? '🔥' : '👋'}
+            </span>
           </h1>
           <p className="text-gray-300 text-lg">
-            Here's what you need to work on today
+            {hasAllKeys() 
+              ? assignments.length > 0 
+                ? "Let's finish your homework 🔥" 
+                : "Ready to sync your assignments and get started!"
+              : "Paste your GPT and Canvas keys to get started"
+            }
           </p>
         </motion.div>
+
+        {/* Setup Guidance Banner */}
+        {!hasAllKeys() && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 p-6 bg-gradient-to-r from-primary-600/20 to-accent-600/20 border border-primary-500/30 rounded-lg"
+          >
+            <div className="flex items-start space-x-4">
+              <div className="flex-shrink-0">
+                <Zap className="h-8 w-8 text-primary-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  Quick Setup - Get Started in 2 Minutes
+                </h3>
+                <div className="space-y-2 text-sm text-gray-300">
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-4 h-4 rounded-full ${hasGptKey() ? 'bg-green-500' : 'bg-gray-500'} flex items-center justify-center`}>
+                      {hasGptKey() && <CheckCircle className="h-3 w-3 text-white" />}
+                    </div>
+                    <span className={hasGptKey() ? 'line-through opacity-75' : ''}>
+                      Step 1: Add your OpenAI GPT API key
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-4 h-4 rounded-full ${hasCanvasKey() ? 'bg-green-500' : 'bg-gray-500'} flex items-center justify-center`}>
+                      {hasCanvasKey() && <CheckCircle className="h-3 w-3 text-white" />}
+                    </div>
+                    <span className={hasCanvasKey() ? 'line-through opacity-75' : ''}>
+                      Step 2: Add your Canvas API token
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-4 h-4 rounded-full ${hasAllKeys() ? 'bg-green-500' : 'bg-gray-500'} flex items-center justify-center`}>
+                      {hasAllKeys() && <CheckCircle className="h-3 w-3 text-white" />}
+                    </div>
+                    <span className={hasAllKeys() ? 'line-through opacity-75' : ''}>
+                      Step 3: Sync assignments & generate content
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Link
+                    to="/settings"
+                    className="btn-primary inline-flex items-center"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {!hasGptKey() && !hasCanvasKey() 
+                      ? 'Add API Keys'
+                      : !hasGptKey() 
+                      ? 'Add GPT Key'
+                      : 'Add Canvas Key'
+                    }
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Trial Banner */}
         <TrialBanner />

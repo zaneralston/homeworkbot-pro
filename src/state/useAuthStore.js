@@ -96,6 +96,22 @@ const useAuthStore = create((set, get) => ({
     try {
       const apiKeys = await getUserApiKeys(userId);
       set({ userApiKeys: apiKeys, isLoadingApiKeys: false });
+      
+      // Auto-sync assignments if both keys are available
+      if (apiKeys?.openai_api_key && apiKeys?.canvas_api_key) {
+        // Import useStore dynamically to avoid circular dependency
+        const useStore = await import('./useStore').then(module => module.default);
+        const { fetchCanvasAssignments, lastCanvasSync } = useStore.getState();
+        
+        // Only auto-sync if it's been more than 1 hour since last sync or never synced
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        const shouldSync = !lastCanvasSync || new Date(lastCanvasSync) < oneHourAgo;
+        
+        if (shouldSync) {
+          console.log('Auto-syncing assignments on login...');
+          fetchCanvasAssignments();
+        }
+      }
     } catch (error) {
       console.error('Error loading user API keys:', error);
       set({ isLoadingApiKeys: false });

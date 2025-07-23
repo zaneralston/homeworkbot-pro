@@ -35,7 +35,8 @@ const Settings = () => {
     isTestingGPT,
     connectCanvas,
     testGPTConnection,
-    clearErrors
+    clearErrors,
+    lastCanvasSync
   } = useStore();
 
   const {
@@ -56,14 +57,42 @@ const Settings = () => {
   const [localCanvasKey, setLocalCanvasKey] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
   const [isSavingKeys, setIsSavingKeys] = useState(false);
+  const [isEditingGptKey, setIsEditingGptKey] = useState(false);
+  const [isEditingCanvasKey, setIsEditingCanvasKey] = useState(false);
 
   // Load API keys from auth store when they change
   useEffect(() => {
     if (userApiKeys) {
       setLocalGptKey(userApiKeys.openai_api_key || '');
       setLocalCanvasKey(userApiKeys.canvas_api_key || '');
+      // Reset editing states when keys are loaded
+      setIsEditingGptKey(!userApiKeys.openai_api_key);
+      setIsEditingCanvasKey(!userApiKeys.canvas_api_key);
     }
   }, [userApiKeys]);
+
+  // Helper function to mask API keys
+  const maskKey = (key) => {
+    if (!key || key.length < 8) return key;
+    return '•'.repeat(key.length - 4) + key.slice(-4);
+  };
+
+  // Handle test connections
+  const handleTestGPT = async () => {
+    // Save keys first if they've been edited
+    if (isEditingGptKey && localGptKey) {
+      await handleSaveKeys();
+    }
+    await testGPTConnection();
+  };
+
+  const handleTestCanvas = async () => {
+    // Save keys first if they've been edited
+    if (isEditingCanvasKey && localCanvasKey) {
+      await handleSaveKeys();
+    }
+    await connectCanvas();
+  };
 
   const vibeOptions = {
     'classic-student': {
@@ -101,6 +130,9 @@ const Settings = () => {
 
       clearErrors();
       setSaveStatus('success');
+      // Exit editing mode after successful save
+      setIsEditingGptKey(false);
+      setIsEditingCanvasKey(false);
     } catch (error) {
       console.error('Error saving API keys:', error);
       setSaveStatus('error');
@@ -270,34 +302,80 @@ const Settings = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     OpenAI GPT API Key *
                   </label>
-                  <div className="relative">
-                    <input
-                      type={showGptKey ? 'text' : 'password'}
-                      value={localGptKey}
-                      onChange={(e) => setLocalGptKey(e.target.value)}
-                      className="input-field pr-10"
-                      placeholder="sk-..."
-                      required
-                    />
-                    <button
-                      onClick={() => setShowGptKey(!showGptKey)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showGptKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <input
+                        type={showGptKey || isEditingGptKey ? 'text' : 'password'}
+                        value={isEditingGptKey ? localGptKey : (userApiKeys?.openai_api_key ? maskKey(userApiKeys.openai_api_key) : localGptKey)}
+                        onChange={(e) => setLocalGptKey(e.target.value)}
+                        onFocus={() => setIsEditingGptKey(true)}
+                        className="input-field pr-20"
+                        placeholder="sk-..."
+                        required
+                        disabled={!isEditingGptKey && userApiKeys?.openai_api_key}
+                      />
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-1">
+                        {userApiKeys?.openai_api_key && !isEditingGptKey && (
+                          <button
+                            onClick={() => setIsEditingGptKey(true)}
+                            className="text-gray-400 hover:text-gray-600 text-xs"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setShowGptKey(!showGptKey)}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          {showGptKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Test Connection Button */}
+                    {userApiKeys?.openai_api_key && (
+                      <motion.button
+                        onClick={handleTestGPT}
+                        disabled={isTestingGPT}
+                        className="btn-secondary text-xs px-3 py-1.5 flex items-center"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        {isTestingGPT ? (
+                          <>
+                            <LoadingSpinner size="sm" text="" color="current" />
+                            <span className="ml-2">Testing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Key className="h-3 w-3 mr-1.5" />
+                            Test GPT Connection
+                          </>
+                        )}
+                      </motion.button>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                    Get your API key from{' '}
-                    <a 
-                      href="https://platform.openai.com/api-keys" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-primary-600 hover:text-primary-700 inline-flex items-center"
-                    >
-                      OpenAI Platform
-                      <ExternalLink className="h-3 w-3 ml-1" />
-                    </a>
-                  </p>
+                  
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      Get your API key from{' '}
+                      <a 
+                        href="https://platform.openai.com/api-keys" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary-600 hover:text-primary-700 inline-flex items-center"
+                      >
+                        OpenAI Platform
+                        <ExternalLink className="h-3 w-3 ml-1" />
+                      </a>
+                    </p>
+                    {gptError && (
+                      <p className="text-xs text-red-600 flex items-center">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        {gptError}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Canvas API Key */}
@@ -305,32 +383,86 @@ const Settings = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Canvas API Token *
                   </label>
-                  <div className="relative">
-                    <input
-                      type={showCanvasKey ? 'text' : 'password'}
-                      value={localCanvasKey}
-                      onChange={(e) => setLocalCanvasKey(e.target.value)}
-                      className="input-field pr-10"
-                      placeholder="1~..."
-                      required
-                    />
-                    <button
-                      onClick={() => setShowCanvasKey(!showCanvasKey)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showCanvasKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <input
+                        type={showCanvasKey || isEditingCanvasKey ? 'text' : 'password'}
+                        value={isEditingCanvasKey ? localCanvasKey : (userApiKeys?.canvas_api_key ? maskKey(userApiKeys.canvas_api_key) : localCanvasKey)}
+                        onChange={(e) => setLocalCanvasKey(e.target.value)}
+                        onFocus={() => setIsEditingCanvasKey(true)}
+                        className="input-field pr-20"
+                        placeholder="1~..."
+                        required
+                        disabled={!isEditingCanvasKey && userApiKeys?.canvas_api_key}
+                      />
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-1">
+                        {userApiKeys?.canvas_api_key && !isEditingCanvasKey && (
+                          <button
+                            onClick={() => setIsEditingCanvasKey(true)}
+                            className="text-gray-400 hover:text-gray-600 text-xs"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setShowCanvasKey(!showCanvasKey)}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          {showCanvasKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Test Connection Button */}
+                    {userApiKeys?.canvas_api_key && (
+                      <motion.button
+                        onClick={handleTestCanvas}
+                        disabled={isConnectingCanvas}
+                        className="btn-secondary text-xs px-3 py-1.5 flex items-center"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        {isConnectingCanvas ? (
+                          <>
+                            <LoadingSpinner size="sm" text="" color="current" />
+                            <span className="ml-2">Testing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <LinkIcon className="h-3 w-3 mr-1.5" />
+                            Test Canvas Connection
+                          </>
+                        )}
+                      </motion.button>
+                    )}
+                    
+                    {/* Last Sync Display */}
+                    {lastCanvasSync && (
+                      <div className="flex items-center text-xs text-green-600 dark:text-green-400">
+                        <Check className="h-3 w-3 mr-1" />
+                        Last synced: {new Date(lastCanvasSync).toLocaleString()}
+                      </div>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                    From ASU Canvas: Account → Settings → Approved Integrations → New Access Token
-                  </p>
+                  
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      From ASU Canvas: Account → Settings → Approved Integrations → New Access Token
+                    </p>
+                    {canvasError && (
+                      <p className="text-xs text-red-600 flex items-center">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        {canvasError}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Save Button */}
                 <div className="pt-4">
                   <motion.button
                     onClick={handleSaveKeys}
-                    disabled={!localGptKey || !localCanvasKey || isSavingKeys}
+                    disabled={!localGptKey || !localCanvasKey || isSavingKeys || (!isEditingGptKey && !isEditingCanvasKey)}
                     className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
