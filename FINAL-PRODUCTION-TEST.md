@@ -75,10 +75,10 @@ To complete full end-to-end testing, you'll need:
 ### **Environment Setup for Testing:**
 ```bash
 # Update .env with real API keys for testing:
-VITE_SUPABASE_URL=https://kvaaapznwjekymplisgu.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_... # Test key for now
-VITE_STRIPE_PRICE_ID=price_... # Test price ID
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+VITE_STRIPE_PRICE_ID=your_stripe_price_id
 ```
 
 ---

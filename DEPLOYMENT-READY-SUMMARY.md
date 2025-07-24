@@ -14,7 +14,7 @@
 - **Build Status**: ✅ Successful (2.30s)
 - **Bundle Size**: 299KB gzipped (excellent for SaaS)
 - **Security Audit**: ✅ 0 vulnerabilities found
-- **Production Server**: ✅ Tested on localhost:9000
+- **Production Server**: ✅ Tested on localhost:9000 
 - **Development Server**: ✅ Running on localhost:5173
 
 ### **⚠️ Code Quality Notes**
@@ -25,15 +25,11 @@
 
 ---
 
-## 🏗️ **DEPLOYMENT ARCHITECTURE**
-
+## 🏗️ **DEPLOYMENT ARCHITECTURE** 
 ### **Frontend Stack**
 - **Framework**: React 18 + Vite
 - **Styling**: Tailwind CSS with responsive design
-- **Animations**: Framer Motion for smooth UX
-- **State**: Zustand with persistence
-- **Hosting**: Vercel (ready for deployment)
-
+- **Animations**: Framer Motion for smooth UX    
 ### **Backend Services**
 - **Database**: Supabase (PostgreSQL)
 - **Authentication**: Supabase Auth
@@ -41,18 +37,18 @@
 - **APIs**: OpenAI GPT + Canvas LMS
 
 ---
-
+    
 ## 🔑 **ENVIRONMENT CONFIGURATION**
 
 ### **Production Environment Variables Needed:**
 ```bash
 # Supabase (Database & Auth)
-VITE_SUPABASE_URL=https://kvaaapznwjekymplisgu.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Stripe (Payments)
-VITE_STRIPE_PUBLISHABLE_KEY=pk_live_51RCChZCxPv7ytV86...
-VITE_STRIPE_PRICE_ID=price_1OhWd3CxPv7ytV86... # $30/month
+VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+VITE_STRIPE_PRICE_ID=your_stripe_price_id
 
 # App Configuration
 VITE_APP_URL=https://homeworkbot.ai
